@@ -1,0 +1,10 @@
+$preheat.s 20
+$preheat.e 100
+
+$soak.s 250
+$soak.e 300
+
+$reflow.s 300
+$reflow.e 350
+
+//example of profile parser(?)

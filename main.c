@@ -1,6 +1,7 @@
 /*******************************************************************************
 */
-#include<stdint.h>
+#include <stdint.h>
+#include "PID.h"
 //TODO: re-add included headers.
 
 typedef enum REFLOW_STATE{
@@ -157,8 +158,8 @@ switch_t switchStatus;
 switch_t switchValue;
 switch_t switchMask;
 // Seconds timer
-uint32_t timerUpdate;
-uint32_t timerSeconds;
+uint32_t timer_update;
+uint32_t timer_seconds;
 // Thermocouple fault status
 uint8_t fault;
 uint8_t temperature[SCREEN_WIDTH - X_AXIS_START];
@@ -166,6 +167,10 @@ uint8_t x;
 
 // PID control interface
 //TODO: find out which header PID is defined in, init thermocoupler
+
+
+
+
 PID reflowOvenPID(&input, &output, &setpoint, kp, ki, kd, DIRECT);
 Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 // MAX31856 thermocouple interface
@@ -242,6 +247,7 @@ switch_t readSwitch(void){
   if (digitalRead(switchLfPbPin) == LOW) return SWITCH_2;
 
   return SWITCH_NONE;
+
 }
 
 uint8_t thermocoupler_error(void*){
@@ -267,8 +273,8 @@ uint8_t thermocoupler_error(void*){
 
 void loop(){
 
-  bool is_running = 1;
-  while(is_running)
+  //bool is_running = 1;
+  //while(is_running)
   // Time to read thermocouple?
   if (millis() > next_read) {
     // Read thermocouple next sampling period
@@ -353,12 +359,12 @@ void loop(){
     if (ReflowStatus == REFLOW_STATUS_ON)
     {
       // We are updating the display faster than sensor reading
-      if (timerSeconds > timerUpdate)
+      if (timer_seconds > timer_update)
       {
         // Store temperature reading every 6 s
-        if ((timerSeconds % 6) == 0)
+        if ((timer_seconds % 6) == 0)
         {
-          timerUpdate = timerSeconds;
+          timer_update = timer_seconds;
           uint8_t averageReading = map(input, 0, 250, 63, 19);
           if (x < (SCREEN_WIDTH - X_AXIS_START))
           {
@@ -388,12 +394,12 @@ void loop(){
         if (switchStatus == SWITCH_1)
         {
           // Send header for CSV file
-          Serial.println(F("Time,Setpoint,Input,Output"));
+          printf("Time, Setpoint, Input, Output");
           // Intialize seconds timer for serial debug information
-          timerSeconds = 0;
+          timer_seconds = 0;
           
           // Initialize reflow plot update timer
-          timerUpdate = 0;
+          timer_update = 0;
           
           for (x = 0; x < (SCREEN_WIDTH - X_AXIS_START); x++){
             temperature[x] = 0;
@@ -410,6 +416,7 @@ void loop(){
           reflowTemperatureMax = TEMPERATURE_REFLOW_MAX_LF;
           soakMicroPeriod = SOAK_MICRO_PERIOD_LF;
           // Tell the PID to range between 0 and the full window size
+          //set_output_limits(0, window_size, pid);
           reflowOvenPID.SetOutputLimits(0, window_size);
           reflowOvenPID.SetSampleTime(PID_SAMPLE_TIME);
           // Turn the PID on

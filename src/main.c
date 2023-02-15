@@ -113,9 +113,9 @@ unsigned char degree[8]  = {
 };
 */
 
-
-//set all pins to corresponding stm pins
+//TODO:set all pins to corresponding stm pins
 // ***** PIN ASSIGNMENT *****
+/*
 uint8_t ssrPin = A0; //set this to stm analog pin 0
 uint8_t fanPin = A1; //set this stm analog pin 1
 uint8_t thermocoupleCSPin = 10;
@@ -123,7 +123,7 @@ uint8_t ledPin = 4;
 uint8_t buzzerPin = 5;
 uint8_t switchStartStopPin = 3;
 uint8_t switchLfPbPin = 2;
-
+*/
 // ***** PID CONTROL VARIABLES *****
 double setpoint;
 double input;
@@ -150,13 +150,13 @@ reflow_status_t ReflowStatus;
 // Reflow profile type
 reflow_profile_t ReflowProfile;
 // Switch debounce state machine state variable
-debounce_state_t debounceState;
+debounce_state_t DebounceState;
 // Switch debounce timer
-int64_t lastDebounceTime;
+int64_t LastDebounceTime;
 // Switch press status
 switch_t switchStatus;
-switch_t switchValue;
-switch_t switchMask;
+switch_t SwitchValue;
+switch_t SwitchMask;
 // Seconds timer
 uint32_t timer_update;
 uint32_t timer_seconds;
@@ -275,6 +275,7 @@ void loop(){
 
   //bool is_running = 1;
   //while(is_running)
+  //will switch while(is_running) for a while(1) loop that is interrupt driven
   // Time to read thermocouple?
   if (millis() > next_read) {
     // Read thermocouple next sampling period
@@ -382,7 +383,7 @@ void loop(){
   }
 
   // Reflow oven controller state machine
-  switch (reflowState)
+  switch (ReflowState)
   {
     case REFLOW_STATE_IDLE:
       // If oven temperature is still above room temperature
@@ -422,7 +423,7 @@ void loop(){
           // Turn the PID on
           reflowOvenPID.SetMode(AUTOMATIC);
           // Proceed to preheat stage
-          reflowState = REFLOW_STATE_PREHEAT;
+          ReflowState = REFLOW_STATE_PREHEAT;
         }
       }
       break;
@@ -439,7 +440,7 @@ void loop(){
         // Ramp up to first section of soaking temperature
         setpoint = TEMPERATURE_SOAK_MIN + SOAK_TEMPERATURE_STEP;
         // Proceed to soaking state
-        reflowState = REFLOW_STATE_SOAK;
+        ReflowState = REFLOW_STATE_SOAK;
       }
       break;
 
@@ -457,7 +458,7 @@ void loop(){
           // Ramp up to first section of soaking temperature
           setpoint = reflowTemperatureMax;
           // Proceed to reflowing state
-          reflowState = REFLOW_STATE_REFLOW;
+          ReflowState = REFLOW_STATE_REFLOW;
         }
       }
       break;
@@ -472,7 +473,7 @@ void loop(){
         // Ramp down to minimum cooling temperature
         setpoint = TEMPERATURE_COOL_MIN;
         // Proceed to cooling state
-        reflowState = REFLOW_STATE_COOL;
+        ReflowState = REFLOW_STATE_COOL;
       }
       break;
 
@@ -481,7 +482,7 @@ void loop(){
       if (input <= TEMPERATURE_COOL_MIN)
       {
         // Retrieve current time for buzzer usage
-        buzzerPeriod = millis() + 1000;
+        buzzer_period = millis() + 1000;
         // Turn on buzzer to indicate completion
         digitalWrite(buzzerPin, HIGH);
         // Turn off reflow process
@@ -492,7 +493,7 @@ void loop(){
       break;
 
     case REFLOW_STATE_COMPLETE:
-      if (millis() > buzzerPeriod)
+      if (millis() > buzzer_period)
       {
         // Turn off buzzer
         digitalWrite(buzzerPin, LOW);
@@ -506,7 +507,7 @@ void loop(){
       if (input < TEMPERATURE_ROOM)
       {
         // Ready to reflow
-        reflowState = REFLOW_STATE_IDLE;
+        ReflowState = REFLOW_STATE_IDLE;
       }
       break;
 
@@ -519,7 +520,7 @@ void loop(){
   if (switchStatus == SWITCH_1)
   {
     // If currently reflow process is on going
-    if (reflowStatus == REFLOW_STATUS_ON)
+    if (ReflowStatus == REFLOW_STATUS_ON)
     {
       // Button press is for cancelling
       // Turn off reflow process
@@ -528,10 +529,10 @@ void loop(){
       ReflowState = REFLOW_STATE_IDLE;
     }
   }
-  // Switch 2 is pressed
-  /* functionality for profile switching, unneeded currently.
+   // Switch 2 is pressed
+   // EEPROM header basically only is used for profile switching.
+   /* functionality for profile switching, unneeded currently.
    * will write custom parser for custom file format here.
-   *
   else if (switchStatus == SWITCH_2 && ReflowState == REFLOW_STATE_IDLE)
   {
     // Only can switch reflow profile during idle
@@ -548,52 +549,52 @@ void loop(){
   // Switch status has been read
   switchStatus = SWITCH_NONE;
   // Simple switch debounce state machine (analog switch)
-  switch (debounceState){
+  switch (DebounceState){
 
     case DEBOUNCE_STATE_IDLE:
       // No valid switch press
       switchStatus = SWITCH_NONE;
-      switchValue = readSwitch();
+      SwitchValue = readSwitch();
 
       // If either switch is pressed
-      if (switchValue != SWITCH_NONE)
+      if (SwitchValue != SWITCH_NONE)
       {
         // Keep track of the pressed switch
-        switchMask = switchValue;
+        SwitchMask = SwitchValue;
         // Intialize debounce counter
-        lastDebounceTime = millis();
+        LastDebounceTime = millis();
         // Proceed to check validity of button press
-        debounceState = DEBOUNCE_STATE_CHECK;
+        DebounceState = DEBOUNCE_STATE_CHECK;
       }
       break;
 
     case DEBOUNCE_STATE_CHECK:
-      switchValue = readSwitch();
-      if (switchValue == switchMask)
+      SwitchValue = readSwitch();
+      if (SwitchValue == SwitchMask)
       {
         // If minimum debounce period is completed
-        if ((millis() - lastDebounceTime) > DEBOUNCE_PERIOD_MIN)
+        if ((millis() - LastDebounceTime) > DEBOUNCE_PERIOD_MIN)
         {
           // Valid switch press
-          switchStatus = switchMask;
+          switchStatus = SwitchMask;
           // Proceed to wait for button release
-          debounceState = DEBOUNCE_STATE_RELEASE;
+          DebounceState = DEBOUNCE_STATE_RELEASE;
         }
       }
       // False trigger
       else
       {
         // Reinitialize button debounce state machine
-        debounceState = DEBOUNCE_STATE_IDLE;
+        DebounceState = DEBOUNCE_STATE_IDLE;
       }
       break;
 
     case DEBOUNCE_STATE_RELEASE:
-      switchValue = readSwitch();
-      if (switchValue == SWITCH_NONE)
+      SwitchValue = readSwitch();
+      if (SwitchValue == SWITCH_NONE)
       {
         // Reinitialize button debounce state machine
-        debounceState = DEBOUNCE_STATE_IDLE;
+        DebounceState = DEBOUNCE_STATE_IDLE;
       }
       break;
   }

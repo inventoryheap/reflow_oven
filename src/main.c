@@ -177,33 +177,13 @@ Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 // MAX31856 thermocouple interface
 Adafruit_MAX31856 thermocouple = Adafruit_MAX31856(thermocoupleCSPin);
 
-void startup_splash(void*){
-  
-  // Start-up splash
-  digitalWrite(buzzerPin, HIGH);
-  oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  oled.display();
-  digitalWrite(buzzerPin, LOW);
-  delay(2000); //TODO stm equivalent of delay
-  oled.clearDisplay();
-  oled.setTextSize(1);
-  oled.setTextColor(White);
-  ssd1306_SetCursor(0, 0);
-  ssd1306_WriteCharln(F("     Tiny Reflow"));
-  ssd1306_WriteCharln(F("     Controller"));
-  ssd1306_WriteCharln();
-  ssd1306_WriteCharln(F("       v3.00"));
-  ssd1306_WriteCharln();
-  ssd1306_WriteCharln(F("      01-04-23"));
-  oled.display();
-  delay(3000);
-  oled.clearDisplay();
 
+uint64_t map(long x, long in_min, long in_max, long out_min, long out_max) {
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-void init(void*){
 
-    ReflowProfile = REFLOW_PROFILE_LEADFREE;
+void init(void*){
 
     //TODO: use equivalent stm for pinmode and digiwrite
     // SSR pin initialization to ensure reflow oven is off
@@ -304,19 +284,7 @@ void loop(){
         // Toggle red LED as system heart beat
       digitalWrite(ledPin, !(digitalRead(ledPin)));
       // Increase seconds timer for reflow curve plot
-      timerSeconds++;
-      // Send temperature and time stamp to serial
-      /*  
-    
-      Serial.print(timerSeconds);
-      Serial.print(F(","));
-      Serial.print(setpoint);
-      Serial.print(F(","));
-      Serial.print(input);
-      Serial.print(F(","));
-      Serial.println(output);
-      
-      */
+      timer_seconds++;
 
     } else {
       // Turn off red LED
@@ -369,10 +337,10 @@ void loop(){
         if ((timer_seconds % 6) == 0)
         {
           timer_update = timer_seconds;
-          uint8_t averageReading = map(input, 0, 250, 63, 19);
+          uint8_t average_reading = map(input, 0, 250, 63, 19);
           if (x < (SCREEN_WIDTH - X_AXIS_START))
           {
-            temperature[x++] = averageReading;
+            temperature[x++] = average_reading;
           }
         }
       }
@@ -416,8 +384,8 @@ void loop(){
           // Ramp up to minimum soaking temperature
           setpoint = TEMPERATURE_SOAK_MIN;
           // Load profile specific constant
-          soakTemperatureMax = TEMPERATURE_SOAK_MAX_LF;
-          reflowTemperatureMax = TEMPERATURE_REFLOW_MAX_LF;
+          soak_temperature_max = TEMPERATURE_SOAK_MAX_LF;
+          reflow_temperature_max = TEMPERATURE_REFLOW_MAX_LF;
           soakMicroPeriod = SOAK_MICRO_PERIOD_LF;
           // Tell the PID to range between 0 and the full window size
           //set_output_limits(0, window_size, pid);
@@ -454,12 +422,12 @@ void loop(){
         timerSoak = millis() + soakMicroPeriod;
         // Increment micro setpoint
         setpoint += SOAK_TEMPERATURE_STEP;
-        if (setpoint > soakTemperatureMax)
+        if (setpoint > soak_temperature_max)
         {
           // Set agressive PID parameters for reflow ramp
           reflowOvenPID.SetTunings(PID_KP_REFLOW, PID_KI_REFLOW, PID_KD_REFLOW);
           // Ramp up to first section of soaking temperature
-          setpoint = reflowTemperatureMax;
+          setpoint = reflow_temperature_max;
           // Proceed to reflowing state
           ReflowState = REFLOW_STATE_REFLOW;
         }
@@ -469,7 +437,7 @@ void loop(){
     case REFLOW_STATE_REFLOW:
       // We need to avoid hovering at peak temperature for too long
       // Crude method that works like a charm and safe for the components
-      if (input >= (reflowTemperatureMax - 5))
+      if (input >= (reflow_temperature_max - 5))
       {
         // Set PID parameters for cooling ramp
         reflowOvenPID.SetTunings(PID_KP_REFLOW, PID_KI_REFLOW, PID_KD_REFLOW);

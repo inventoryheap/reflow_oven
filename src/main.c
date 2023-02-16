@@ -2,6 +2,7 @@
 */
 #include <stdint.h>
 #include "../include/PID.h"
+#include "../ssd1306.h"
 //TODO: re-add included headers.
 
 typedef enum REFLOW_STATE{
@@ -154,7 +155,7 @@ debounce_state_t DebounceState;
 // Switch debounce timer
 int64_t LastDebounceTime;
 // Switch press status
-switch_t switchStatus;
+switch_t SwitchStatus;
 switch_t SwitchValue;
 switch_t SwitchMask;
 // Seconds timer
@@ -186,14 +187,14 @@ void startup_splash(void*){
   delay(2000); //TODO stm equivalent of delay
   oled.clearDisplay();
   oled.setTextSize(1);
-  oled.setTextColor(WHITE);
-  oled.setCursor(0, 0);
-  oled.println(F("     Tiny Reflow"));
-  oled.println(F("     Controller"));
-  oled.println();
-  oled.println(F("       v3.00"));
-  oled.println();
-  oled.println(F("      01-04-23"));
+  oled.setTextColor(White);
+  ssd1306_SetCursor(0, 0);
+  ssd1306_WriteCharln(F("     Tiny Reflow"));
+  ssd1306_WriteCharln(F("     Controller"));
+  ssd1306_WriteCharln();
+  ssd1306_WriteCharln(F("       v3.00"));
+  ssd1306_WriteCharln();
+  ssd1306_WriteCharln(F("      01-04-23"));
   oled.display();
   delay(3000);
   oled.clearDisplay();
@@ -305,6 +306,8 @@ void loop(){
       // Increase seconds timer for reflow curve plot
       timerSeconds++;
       // Send temperature and time stamp to serial
+      /*  
+    
       Serial.print(timerSeconds);
       Serial.print(F(","));
       Serial.print(setpoint);
@@ -312,7 +315,9 @@ void loop(){
       Serial.print(input);
       Serial.print(F(","));
       Serial.println(output);
-    
+      
+      */
+
     } else {
       // Turn off red LED
       digitalWrite(ledPin, LOW);
@@ -321,40 +326,38 @@ void loop(){
 
   //draw if appropriate
   if (millis() > update_lcd){
-    oled.clearDisplay();
-    oled.setTextSize(2);
-    oled.setCursor(0, 0);
-    oled.print(lcd_messages_reflow_status[ReflowState]);
-    oled.setTextSize(1);
-    oled.setCursor(115, 0);
+    ssd1306_Fill(Black);
+    ssd1306_SetCursor(0, 0);
+    ssd1306_WriteChar(lcd_messages_reflow_status[ReflowState], Font_6x8, White);
+    ssd1306_SetCursor(115, 0);
 
-    oled.print(F("LF"));
+    ssd1306_WriteChar("LF", Font_6x8, White);
     
     // Temperature markers
-    oled.setCursor(0, 18);
-    oled.print(F("250"));
-    oled.setCursor(0, 36);
-    oled.print(F("150"));
-    oled.setCursor(0, 54);
-    oled.print(F("50"));
+    ssd1306_SetCursor(0, 18);
+    ssd1306_WriteChar(F("250"));
+    ssd1306_SetCursor(0, 36);
+    ssd1306_WriteChar(F("150"));
+    ssd1306_SetCursor(0, 54);
+    ssd1306_WriteChar(F("50"));
     // Draw temperature and time axis
-    oled.drawLine(18, 18, 18, 63, WHITE);
-    oled.drawLine(18, 63, 127, 63, WHITE);
-    oled.setCursor(115, 0);
+    ssd1306_Line(18, 18, 18, 63, White);
+    ssd1306_Line(18, 63, 127, 63, White);
+    ssd1306_SetCursor(115, 0);
 
     // If currently in error state
     if (ReflowState == REFLOW_STATE_ERROR){
-      oled.setCursor(80, 9);
-      oled.print(F("TC Error"));
+      ssd1306_SetCursor(80, 9);
+      ssd1306_WriteChar(F("TC Error"));
     } else {
       // Right align temperature reading
-      if (input < 10) oled.setCursor(91, 9);
-      else if (input < 100) oled.setCursor(85,9);
-      else oled.setCursor(80, 9);
+      if (input < 10) ssd1306_SetCursor(91, 9);
+      else if (input < 100) ssd1306_SetCursor(85,9);
+      else ssd1306_SetCursor(80, 9);
       // Display current temperature
-      oled.print(input);
-      oled.print((char)247);
-      oled.print(F("C"));
+      ssd1306_WriteChar(input);
+      ssd1306_WriteChar((char)247);
+      ssd1306_WriteChar(F("C"));
     }
     
     if (ReflowStatus == REFLOW_STATUS_ON)
@@ -376,10 +379,10 @@ void loop(){
     }
     
     for (uint8_t timeAxis = 0; timeAxis < x; timeAxis++){
-      oled.drawPixel(timeAxis + X_AXIS_START, temperature[timeAxis], WHITE);
+      ssd1306_DrawPixel(timeAxis + X_AXIS_START, temperature[timeAxis], White);
     }
     // Update screen
-    oled.display();
+    ssd1306_UpdateScreen();
   }
 
   // Reflow oven controller state machine
@@ -392,7 +395,7 @@ void loop(){
         break;
       } else {
         // If switch is pressed to start reflow process
-        if (switchStatus == SWITCH_1)
+        if (SwitchStatus == SWITCH_1)
         {
           // Send header for CSV file
           printf("Time, Setpoint, Input, Output");
@@ -517,7 +520,7 @@ void loop(){
   }
 
   // If switch 1 is pressed
-  if (switchStatus == SWITCH_1)
+  if (SwitchStatus == SWITCH_1)
   {
     // If currently reflow process is on going
     if (ReflowStatus == REFLOW_STATUS_ON)
@@ -533,7 +536,7 @@ void loop(){
    // EEPROM header basically only is used for profile switching.
    /* functionality for profile switching, unneeded currently.
    * will write custom parser for custom file format here.
-  else if (switchStatus == SWITCH_2 && ReflowState == REFLOW_STATE_IDLE)
+  else if (SwitchStatus == SWITCH_2 && ReflowState == REFLOW_STATE_IDLE)
   {
     // Only can switch reflow profile during idle
       // Currently using lead-free reflow profile
@@ -547,13 +550,13 @@ void loop(){
   */
   
   // Switch status has been read
-  switchStatus = SWITCH_NONE;
+  SwitchStatus = SWITCH_NONE;
   // Simple switch debounce state machine (analog switch)
   switch (DebounceState){
 
     case DEBOUNCE_STATE_IDLE:
       // No valid switch press
-      switchStatus = SWITCH_NONE;
+      SwitchStatus = SWITCH_NONE;
       SwitchValue = readSwitch();
 
       // If either switch is pressed
@@ -576,7 +579,7 @@ void loop(){
         if ((millis() - LastDebounceTime) > DEBOUNCE_PERIOD_MIN)
         {
           // Valid switch press
-          switchStatus = SwitchMask;
+          SwitchStatus = SwitchMask;
           // Proceed to wait for button release
           DebounceState = DEBOUNCE_STATE_RELEASE;
         }

@@ -210,11 +210,11 @@ void init(void*){
     // Set window size
     window_size = 2000;
     // Initialize time keeping variable
-    next_check = millis();
+    next_check = HAL_GetTick();
     // Initialize thermocouple reading variable
-    next_read = millis();
+    next_read = HAL_GetTick();
     // Initialize LCD update timer
-    update_lcd = millis();
+    update_lcd = HAL_GetTick();
 
     loop();
 
@@ -258,7 +258,7 @@ void loop(){
   //while(is_running)
   //will switch while(is_running) for a while(1) loop that is interrupt driven
   // Time to read thermocouple?
-  if (millis() > next_read) {
+  if (HAL_GetTick() > next_read) {
     // Read thermocouple next sampling period
     next_read += SENSOR_SAMPLING_TIME;
     // Read current temperature
@@ -275,7 +275,7 @@ void loop(){
   }
 
   //check input
-  if (millis() > next_check){
+  if (HAL_GetTick() > next_check){
     // essentially we add 1000(SENSOR_SAMPLING_TIME) to next check such that we our period is millis + 1000
     next_check += SENSOR_SAMPLING_TIME;
     // If reflow process is on going
@@ -293,7 +293,7 @@ void loop(){
   }
 
   //draw if appropriate
-  if (millis() > update_lcd){
+  if (HAL_GetTick() > update_lcd){
     ssd1306_Fill(Black);
     ssd1306_SetCursor(0, 0);
     ssd1306_WriteChar(lcd_messages_reflow_status[ReflowState], Font_6x8, White);
@@ -366,7 +366,6 @@ void loop(){
         if (SwitchStatus == SWITCH_1)
         {
           // Send header for CSV file
-          printf("Time, Setpoint, Input, Output");
           // Intialize seconds timer for serial debug information
           timer_seconds = 0;
           
@@ -380,7 +379,7 @@ void loop(){
           x = 0;
           
           // Initialize PID control window starting time
-          window_start_time = millis();
+          window_start_time = HAL_GetTick();
           // Ramp up to minimum soaking temperature
           setpoint = TEMPERATURE_SOAK_MIN;
           // Load profile specific constant
@@ -389,10 +388,10 @@ void loop(){
           soak_micro_period = SOAK_MICRO_PERIOD_LF;
           // Tell the PID to range between 0 and the full window size
           //set_output_limits(0, window_size, pid);
-          reflowOvenPID.SetOutputLimits(0, window_size);
-          reflowOvenPID.SetSampleTime(PID_SAMPLE_TIME);
+          set_output_limits(0, window_size, pid);
+          set_sample_time(PID_SAMPLE_TIME, pid);
           // Turn the PID on
-          reflowOvenPID.SetMode(AUTOMATIC);
+          set_mode(AUTOMATIC, pid);
           // Proceed to preheat stage
           ReflowState = REFLOW_STATE_PREHEAT;
         }
@@ -405,9 +404,9 @@ void loop(){
       if (input >= TEMPERATURE_SOAK_MIN)
       {
         // Chop soaking period into smaller sub-period
-        timer_soak = millis() + soak_micro_period;
+        timer_soak = HAL_GetTick() + soak_micro_period;
         // Set less agressive PID parameters for soaking ramp
-        reflowOvenPID.SetTunings(PID_KP_SOAK, PID_KI_SOAK, PID_KD_SOAK);
+        set_tunings(PID_KP_SOAK, PID_KI_SOAK, PID_KD_SOAK, pid);
         // Ramp up to first section of soaking temperature
         setpoint = TEMPERATURE_SOAK_MIN + SOAK_TEMPERATURE_STEP;
         // Proceed to soaking state
@@ -417,9 +416,9 @@ void loop(){
 
     case REFLOW_STATE_SOAK:
       // If micro soak temperature is achieved
-      if (millis() > timer_soak)
+      if (HAL_GetTick() > timer_soak)
       {
-        timer_soak = millis() + soak_micro_period;
+        timer_soak = HAL_GetTick() + soak_micro_period;
         // Increment micro setpoint
         setpoint += SOAK_TEMPERATURE_STEP;
         if (setpoint > soak_temperature_max)
@@ -440,7 +439,7 @@ void loop(){
       if (input >= (reflow_temperature_max - 5))
       {
         // Set PID parameters for cooling ramp
-        reflowOvenPID.SetTunings(PID_KP_REFLOW, PID_KI_REFLOW, PID_KD_REFLOW);
+          set_tunings(PID_KP_REFLOW, PID_KI_REFLOW, PID_KD_REFLOW, 1, pid);
         // Ramp down to minimum cooling temperature
         setpoint = TEMPERATURE_COOL_MIN;
         // Proceed to cooling state
@@ -453,7 +452,7 @@ void loop(){
       if (input <= TEMPERATURE_COOL_MIN)
       {
         // Retrieve current time for buzzer usage
-        buzzer_period = millis() + 1000;
+        buzzer_period = HAL_GetTick() + 1000;
         // Turn on buzzer to indicate completion
         digitalWrite(buzzerPin, HIGH);
         // Turn off reflow process
@@ -464,7 +463,7 @@ void loop(){
       break;
 
     case REFLOW_STATE_COMPLETE:
-      if (millis() > buzzer_period)
+      if (HAL_GetTick() > buzzer_period)
       {
         // Turn off buzzer
         digitalWrite(buzzerPin, LOW);
@@ -533,7 +532,7 @@ void loop(){
         // Keep track of the pressed switch
         SwitchMask = SwitchValue;
         // Intialize debounce counter
-        LastDebounceTime = millis();
+        LastDebounceTime = HAL_GetTick();
         // Proceed to check validity of button press
         DebounceState = DEBOUNCE_STATE_CHECK;
       }
@@ -544,7 +543,7 @@ void loop(){
       if (SwitchValue == SwitchMask)
       {
         // If minimum debounce period is completed
-        if ((millis() - LastDebounceTime) > DEBOUNCE_PERIOD_MIN)
+        if ((HAL_GetTick() - LastDebounceTime) > DEBOUNCE_PERIOD_MIN)
         {
           // Valid switch press
           SwitchStatus = SwitchMask;
@@ -573,7 +572,7 @@ void loop(){
   // PID computation and SSR control
   if (ReflowStatus == REFLOW_STATUS_ON)
   {
-    current_time = millis();
+    current_time = HAL_GetTick();
     reflowOvenPID.Compute();
 
     if ((current_time - window_start_time) > window_size)

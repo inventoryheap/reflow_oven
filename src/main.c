@@ -386,7 +386,7 @@ void loop(){
           // Load profile specific constant
           soak_temperature_max = TEMPERATURE_SOAK_MAX_LF;
           reflow_temperature_max = TEMPERATURE_REFLOW_MAX_LF;
-          soakMicroPeriod = SOAK_MICRO_PERIOD_LF;
+          soak_micro_period = SOAK_MICRO_PERIOD_LF;
           // Tell the PID to range between 0 and the full window size
           //set_output_limits(0, window_size, pid);
           reflowOvenPID.SetOutputLimits(0, window_size);
@@ -405,7 +405,7 @@ void loop(){
       if (input >= TEMPERATURE_SOAK_MIN)
       {
         // Chop soaking period into smaller sub-period
-        timerSoak = millis() + soakMicroPeriod;
+        timer_soak = millis() + soak_micro_period;
         // Set less agressive PID parameters for soaking ramp
         reflowOvenPID.SetTunings(PID_KP_SOAK, PID_KI_SOAK, PID_KD_SOAK);
         // Ramp up to first section of soaking temperature
@@ -417,15 +417,15 @@ void loop(){
 
     case REFLOW_STATE_SOAK:
       // If micro soak temperature is achieved
-      if (millis() > timerSoak)
+      if (millis() > timer_soak)
       {
-        timerSoak = millis() + soakMicroPeriod;
+        timer_soak = millis() + soak_micro_period;
         // Increment micro setpoint
         setpoint += SOAK_TEMPERATURE_STEP;
         if (setpoint > soak_temperature_max)
         {
           // Set agressive PID parameters for reflow ramp
-          reflowOvenPID.SetTunings(PID_KP_REFLOW, PID_KI_REFLOW, PID_KD_REFLOW);
+          set_tunings(PID_KP_REFLOW, PID_KI_REFLOW, PID_KD_REFLOW, 1, pid);
           // Ramp up to first section of soaking temperature
           setpoint = reflow_temperature_max;
           // Proceed to reflowing state

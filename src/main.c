@@ -220,7 +220,7 @@ void init(void*){
 
 }
 
-switch_t readSwitch(void){
+switch_t read_switch(void){
   
   int switchAdcValue = 0;
   // Switch connected directly to individual separate pins
@@ -387,11 +387,11 @@ void loop(){
           reflow_temperature_max = TEMPERATURE_REFLOW_MAX_LF;
           soak_micro_period = SOAK_MICRO_PERIOD_LF;
           // Tell the PID to range between 0 and the full window size
-          //set_output_limits(0, window_size, pid);
-          set_output_limits(0, window_size, pid);
-          set_sample_time(PID_SAMPLE_TIME, pid);
+          //pid_set_output_limits(0, window_size, pid);
+          pid_set_output_limits(0, window_size, pid);
+          pid_set_sample_time(PID_SAMPLE_TIME, pid);
           // Turn the PID on
-          set_mode(AUTOMATIC, pid);
+          pid_set_mode(AUTOMATIC, pid);
           // Proceed to preheat stage
           ReflowState = REFLOW_STATE_PREHEAT;
         }
@@ -406,7 +406,7 @@ void loop(){
         // Chop soaking period into smaller sub-period
         timer_soak = HAL_GetTick() + soak_micro_period;
         // Set less agressive PID parameters for soaking ramp
-        set_tunings(PID_KP_SOAK, PID_KI_SOAK, PID_KD_SOAK, pid);
+        pid_set_tunings(PID_KP_SOAK, PID_KI_SOAK, PID_KD_SOAK, pid);
         // Ramp up to first section of soaking temperature
         setpoint = TEMPERATURE_SOAK_MIN + SOAK_TEMPERATURE_STEP;
         // Proceed to soaking state
@@ -424,7 +424,7 @@ void loop(){
         if (setpoint > soak_temperature_max)
         {
           // Set agressive PID parameters for reflow ramp
-          set_tunings(PID_KP_REFLOW, PID_KI_REFLOW, PID_KD_REFLOW, 1, pid);
+          pid_set_tunings(PID_KP_REFLOW, PID_KI_REFLOW, PID_KD_REFLOW, 1, pid);
           // Ramp up to first section of soaking temperature
           setpoint = reflow_temperature_max;
           // Proceed to reflowing state
@@ -439,7 +439,7 @@ void loop(){
       if (input >= (reflow_temperature_max - 5))
       {
         // Set PID parameters for cooling ramp
-          set_tunings(PID_KP_REFLOW, PID_KI_REFLOW, PID_KD_REFLOW, 1, pid);
+          pid_set_tunings(PID_KP_REFLOW, PID_KI_REFLOW, PID_KD_REFLOW, 1, pid);
         // Ramp down to minimum cooling temperature
         setpoint = TEMPERATURE_COOL_MIN;
         // Proceed to cooling state
@@ -524,7 +524,7 @@ void loop(){
     case DEBOUNCE_STATE_IDLE:
       // No valid switch press
       SwitchStatus = SWITCH_NONE;
-      SwitchValue = readSwitch();
+      SwitchValue = read_switch();
 
       // If either switch is pressed
       if (SwitchValue != SWITCH_NONE)
@@ -539,7 +539,7 @@ void loop(){
       break;
 
     case DEBOUNCE_STATE_CHECK:
-      SwitchValue = readSwitch();
+      SwitchValue = read_switch();
       if (SwitchValue == SwitchMask)
       {
         // If minimum debounce period is completed
@@ -560,7 +560,7 @@ void loop(){
       break;
 
     case DEBOUNCE_STATE_RELEASE:
-      SwitchValue = readSwitch();
+      SwitchValue = read_switch();
       if (SwitchValue == SWITCH_NONE)
       {
         // Reinitialize button debounce state machine

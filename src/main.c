@@ -573,7 +573,7 @@ void loop(){
   if (ReflowStatus == REFLOW_STATUS_ON)
   {
     current_time = HAL_GetTick();
-    reflowOvenPID.Compute();
+    pid_compute(pid);
 
     if ((current_time - window_start_time) > window_size)
     {

@@ -97,14 +97,14 @@ typedef enum REFLOW_PROFILE{
 
 // ***** LCD MESSAGES *****
 const char* lcd_messages_reflow_status[] = {
-  "idle",
-  "pre",
-  "soak",
-  "reflow",
-  "cool",
-  "finished",
-  "cooling(hot)",
-  "error"
+    "idle",
+    "pre",
+    "soak",
+    "reflow",
+    "cool",
+    "finished",
+    "cooling(hot)",
+    "error"
 };
 
 /*
